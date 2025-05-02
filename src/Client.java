@@ -25,6 +25,7 @@ public class Client {
     	            		||fromServer.startsWith("Enter your nickname:")
     	            		||fromServer.startsWith("Type 'ready' when you are ready to start")
     	            		||fromServer.startsWith("Enter game name: ")
+                            ||fromServer.startsWith("Please provide a valid game id.")
 ) {
     	                String userInput = stdIn.readLine();  // Only read from user when required
     	                out.println(userInput);

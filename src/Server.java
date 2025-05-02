@@ -76,11 +76,8 @@ public class Server {
 	    }
 
 	    if (games.isEmpty() || allFinished) {
+			System.out.println("No games available. A new game will be created automatically.");
 	        addNewGame();
-	    }
-
-	    if (games.isEmpty()) {
-	        return "No games available. A new game will be created automatically.";
 	    }
 
 	    // Header
@@ -184,10 +181,16 @@ public class Server {
 					gameSelection = games.get(games.size()-1).getGameid();
 				}
 				else {
-					gameSelection = Integer.parseInt(userGameSelection); // Client's game choice
-					if (handleGameSelection(gameSelection)) {
-						games.get(gameSelection-1).addPlayer(p, nickname);
-					}
+					boolean wrong = false;
+					do {
+						if(wrong == true) {
+							out.println("Please provide a valid game id.");
+							userGameSelection = in.readLine();
+						}
+						gameSelection = Integer.parseInt(userGameSelection); // Client's game choice
+						wrong = true;
+					} while (handleGameSelection(gameSelection) == false);
+					games.get(gameSelection-1).addPlayer(p, nickname);
 				}
 
 			} catch (NumberFormatException e) {
