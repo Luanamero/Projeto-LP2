@@ -21,22 +21,22 @@ public class Client {
     	        	System.out.println(fromServer);
 
     	            if (
-    	            		fromServer.startsWith("Please pick a game ID or type 'create' to start a new game.")
-    	            		||fromServer.startsWith("Enter your nickname:")
-    	            		||fromServer.startsWith("Type 'ready' when you are ready to start")
-    	            		||fromServer.startsWith("Enter game name: ")
-                            ||fromServer.startsWith("Please provide a valid game id.")
+    	            		fromServer.startsWith("Escolha um ID de jogo ou digite 'criar' para criar um novo jogo.")
+    	            		||fromServer.startsWith("Digite o seu nome/apelido:")
+    	            		||fromServer.startsWith("Digite 'pronto' quando estiver pronto para começar a jogar.")
+    	            		||fromServer.startsWith("Digite o nome do jogo: ")
+                            ||fromServer.startsWith("Digite um número de ID válido.")
 ) {
     	                String userInput = stdIn.readLine();  // Only read from user when required
     	                out.println(userInput);
     	            }
-    	            else if (fromServer.startsWith("Enter your guess") || fromServer.startsWith("Echo msg")) {
-                        handleInputWithTimeout(stdIn, out, 30000); // 10 seconds timeout for user input
+    	            else if (fromServer.startsWith("Digite o seu número") || fromServer.startsWith("Echo")) {
+                        handleInputWithTimeout(stdIn, out, 50000); // 10 seconds timeout for user input
                     } 
 
     	        }
     	    } catch (IOException e) {
-    	        System.err.println("Couldn't get I/O for the connection to localhost");
+    	        System.err.println("Não conseguiu se conectar ao localhost");
     	        e.printStackTrace();
     	    }
     	}
@@ -53,7 +53,7 @@ public class Client {
                     out.println("");  // Send empty string if no input (EOF)
                 }
             } catch (IOException e) {
-                System.err.println("Error while reading from user input");
+                System.err.println("Erro enquanto lia dados do cliente");
                 out.println("");  // Consider sending an empty string or handling the error
             }
         });
@@ -78,7 +78,7 @@ public class Client {
             inputThread.join(timeoutMillis);  // Wait for the thread to finish or timeout
             timer.cancel();  // Cancel the timer if the input thread finishes on time
         } catch (InterruptedException e) {
-            System.err.println("Main thread was interrupted while waiting for input thread to finish.");
+            System.err.println("Thread main foi interrompida enquanto esperava as outras.");
         }
     }
 

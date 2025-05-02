@@ -1,6 +1,6 @@
 Para comunicação entre servidor e cliente, o programa está usando BufferedReader e PrintWritter -> o professor ensinou com DataInputStream e DataOutputStream
 
-Melhorar a função IssueTicket -> syncronized e retorna apenas um id (está muito confuso)
+Melhorar a função IssueTicket -> syncronized e retorna apenas um id (está muito confuso) ->  OK!
 
 Enquanto espera que mais jogadores entrem no jogo, espera em um while com thread.sleep -> acho que tem como usar variáveis condicionais, e usar o notifyAll
 
@@ -11,3 +11,6 @@ Pelo o que vi, podemos fazer com pool de threads.
 
 Possível erro -> Se não tiver nenhum jogo ativo, cria um jogo (possível criação de dois jogos sem necessidade)
 Ainda sobre isso, AddNewGame precisa de alguma forma de sincronização, pois incrementa um contador e coloca como id do jogo (jogos com o mesmo id)
+
+Echo com concorrência -> OK!
+Precisa verificar a função EliminatePlayer, pois mexe com as threads novas

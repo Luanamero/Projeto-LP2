@@ -1,4 +1,4 @@
-import java.util.concurrent.locks.ReentrantLock;
+// import java.util.concurrent.locks.ReentrantLock;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -6,9 +6,14 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+// import java.util.HashMap;
+// import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 public class Game extends Thread {
 
@@ -16,21 +21,16 @@ public class Game extends Thread {
 	private int gameid =1;
 	private int userInputReady =  0;
 	private String gameName = "";
-	private Map<String, Integer> playerScores;
+	// private Map<String, Integer> playerScores;
 	private Player winner = null;
-
-
 	private boolean isOver = false;
 	private Semaphore sem;
+	boolean gameInProgress=false;
+	int roundCounter=0;
+	boolean roundInProgress=false;
+	int maxRounds=0;
 
 	final int TIMEOUT = 50000;
-	boolean gameInProgress=false;
-
-	int roundCounter=0;
-
-	boolean roundInProgress=false;
-
-	int maxRounds=0;
 
 	public Game(int id) {
 		this.gameid = id;
@@ -86,14 +86,14 @@ public class Game extends Thread {
 	public void run() {
 		try {
 			gameInProgress = true;
-			notifyPlayers("Game is starting...");
+			notifyPlayers("O jogo está começando...");
 
 			while (!isOver) {
 				collectPlayerInputs();
 				roundCounter++;
 			}
 		} catch (IOException e) {
-			System.err.println("IO error in game thread: " + e.getMessage());
+			System.err.println("IO exception no jogo: " + e.getMessage());
 		} finally {
 			cleanUpConnections();
 			if (sem != null) {
@@ -114,9 +114,8 @@ public class Game extends Thread {
 		Player player = new Player(playerSocket, nickname);
 		players.add(player);
 		try {
-			notifyPlayers(player.getNickname() + " has joined the game.");
+			notifyPlayers(player.getNickname() + " entrou para o jogo.");
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -147,28 +146,28 @@ public class Game extends Thread {
 	        BufferedReader in = new BufferedReader(new InputStreamReader(player.getSocket().getInputStream()));
 
 	        try {
-	            out.println("Enter your guess (between 0 and 100):");
-	            player.getSocket().setSoTimeout(30000); // 20 seconds timeout
+	            out.println("Digite o seu número (entre 0 e 100):");
+	            player.getSocket().setSoTimeout(TIMEOUT);
 
 	            String inputStr = in.readLine();
 	            if (inputStr == null || inputStr.isEmpty()) {
 	                // Treat no input or empty input as invalid or timed out
-	                out.println("Invalid input or no input received.");
+	                out.println("Input inválido ou não enviado.");
 	                inputs.add(-1); // You may choose to handle this differently
 	            } else {
 	                int input = Integer.parseInt(inputStr);
 	                if (input >= 0 && input <= 100) {
 	                    inputs.add(input);
 	                } else {
-	                    out.println("Invalid input. Please enter a number between 0 and 100.");
+	                    out.println("Input inválido. Digite um número entre 0 e 100.");
 	                    inputs.add(-1);
 	                }
 	            }
 	        } catch (SocketTimeoutException e) {
-	            out.println("Time's up! You didn't enter a guess in time.");
+	            out.println("Timeout: Você não adicionou um número a tempo.");
 	            inputs.add(-1);
 	        } catch (NumberFormatException e) {
-	            out.println("Invalid format. Please enter a valid number.");
+	            out.println("Input inválido. Digite um número entre 0 e 100.");
 	            inputs.add(-1);
 	        }
 	    }
@@ -179,41 +178,58 @@ public class Game extends Thread {
 		checkEndOfGame(inputs);
 		sendEchoMessage();
 	}
-	
-	private void sendEchoMessage() throws IOException {
-	    ArrayList<Player> activePlayers = new ArrayList<>();
 
-	    for (Player player : players) {
-	        if (!player.isActive()) {
-	            continue;  // Skip inactive players
-	        }
+	private void sendEchoMessagePlayer(Player player, List<Player> activePlayers) throws IOException {
+		PrintWriter out = new PrintWriter(player.getSocket().getOutputStream(), true);
+	    BufferedReader in = new BufferedReader(new InputStreamReader(player.getSocket().getInputStream()));
 
-	        PrintWriter out = new PrintWriter(player.getSocket().getOutputStream(), true);
-	        BufferedReader in = new BufferedReader(new InputStreamReader(player.getSocket().getInputStream()));
+	    try {
+				out.println("Echo: digite 'sim' para confirmar a sua presença");
+				player.getSocket().setSoTimeout(30000);  // Wait for 10 seconds
 
-	        try {
-	            out.println("Echo msg: Type 'yes' to confirm your presence.");
-	            player.getSocket().setSoTimeout(30000);  // Wait for 10 seconds
-
-	            String response = in.readLine();
-	            // Consider both no response and an empty string as inactivity signs
-	            if (response != null && !response.trim().isEmpty()) {
-	                activePlayers.add(player);  // The player responded appropriately
-	            } else {
-	                out.println("No or invalid response. You have been marked as inactive.");
-	                eliminatePlayer(player);
-	            }
+				String response = in.readLine();
+				// Consider both no response and an empty string as inactivity signs
+				if (response != null && !response.trim().isEmpty()) {
+					activePlayers.add(player);  // The player responded appropriately
+				} else {
+					out.println("Sem resposta ou resposta inválida. Você foi desativado (eliminado).");
+					eliminatePlayer(player);
+				}
 	        } catch (SocketTimeoutException e) {
-	            out.println("You did not respond in time and have been marked as inactive.");
+	            out.println("Você não respondeu a tempo e foi desativado (eliminado).");
 	            eliminatePlayer(player);
 	        } catch (IOException e) {
-	            System.err.println("IO Exception for player " + player.getNickname() + ": " + e.getMessage());
+	            System.err.println("IO Exception para o jogador " + player.getNickname() + ": " + e.getMessage());
 	            eliminatePlayer(player);
 	        }
-	    }
+
+	}
+	
+		private void sendEchoMessage() throws IOException {
+		ExecutorService executor = Executors.newFixedThreadPool(players.size());
+		List<Player> activePlayers = Collections.synchronizedList(new ArrayList<>());
+
+		for (Player player : players) {
+			if (!player.isActive()) continue;
+
+			executor.submit(() -> {
+				try {
+					sendEchoMessagePlayer(player, activePlayers);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			});
+		}
+
+		executor.shutdown();
+		try {
+			executor.awaitTermination(30, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 
 	    // Log current active players for debugging
-	    System.out.println("Active players after echo check: " + activePlayers.size());
+	    System.out.println("Jogadores ativos depois do echo: " + activePlayers.size());
 
 	    // Check if the game should end
 	    if (activePlayers.size() < 2) {
@@ -224,45 +240,13 @@ public class Game extends Thread {
 	    }
 	}
 
-//	private void announceRoundWinner(ArrayList<Integer> inputs) throws IOException {
-//		double average = inputs.stream().mapToInt(Integer::intValue).average().orElse(0);
-//		double target = (2.0 / 3.0) * average;
-//		int winnerIndex = -1;
-//		double smallestDifference = Double.MAX_VALUE;
-//
-//		for (int i = 0; i < inputs.size(); i++) {
-//			if (!players.get(i).isActive()) {
-//				continue; // Skip inactive players in the winner calculation
-//			}
-//			double difference = Math.abs(inputs.get(i) - target);
-//			if (difference < smallestDifference) {
-//				smallestDifference = difference;
-//				winnerIndex = i;
-//			}
-//		}
-//
-//		for (Player player : players) {
-//			PrintWriter out = new PrintWriter(player.getSocket().getOutputStream(), true);
-//			int playerIndex = players.indexOf(player);
-//			if (playerIndex == winnerIndex) {
-//				//				player.incrementPoints(); // Use the increment method in Player class
-//				out.println("You win this round! Your guess was closest to two-thirds of the average (" + target + ").");
-//
-//			} else {
-//				out.println("You lose this round. Your guess was " + (playerIndex < inputs.size() ? inputs.get(playerIndex) : "N/A") + ".");
-//				player.decrementPoints(); // Use the decrement method in Player class
-//			}
-//		}
-//	}
-
-
 	private void eliminatePlayers() throws IOException {
 		for (Player player : players) {
 			if (player.getPoints() == 0 && player.isActive()) { // Check if the player should be eliminated
 				player.setActive(false); // Mark as eliminated
 				for (Player p : players) { // Notify all players
 					PrintWriter out = new PrintWriter(p.getSocket().getOutputStream(), true);
-					out.println("Client: " + player.getNickname() + " has been eliminated!");
+					out.println("Jogador: " + player.getNickname() + " foi eliminado!");
 				}
 			}
 		}
@@ -279,7 +263,7 @@ public class Game extends Thread {
 			// Both players are winners
 			for (Player player : players) {
 				PrintWriter out = new PrintWriter(player.getSocket().getOutputStream(), true);
-				out.println("You win this round! Your guess was closest to two-thirds of the average (" + target + ").");
+				out.println("Você ganhou essa rodada! Seu número foi o mais próximo de 2/3 da média (\" + target + \").");
 			}
 			return;
 		}
@@ -299,10 +283,10 @@ public class Game extends Thread {
 			PrintWriter out = new PrintWriter(player.getSocket().getOutputStream(), true);
 			int playerIndex = players.indexOf(player);
 			if (playerIndex == winnerIndex) {
-				out.println("You win this round! Your guess was closest to two-thirds of the average (" + target + ").");
+				out.println("Você ganhou essa rodada! Seu número foi o mais próximo de 2/3 da média (" + target + ").");
 
 			} else {
-				out.println("You lose this round. Your guess was " + (playerIndex < inputs.size() ? inputs.get(playerIndex) : "N/A") + ".");
+				out.println("Você perdeu essa rodada. Seu número foi " + (playerIndex < inputs.size() ? inputs.get(playerIndex) : "N/A") + ".");
 				player.decrementPoints(); // Use the decrement method in Player class
 			}
 		}
@@ -333,25 +317,7 @@ public class Game extends Thread {
 			}
 		}
 
-		//0 Discouragement
-		if (count == 2) { 
-			int firstInput = inputs.get(players.indexOf(activePlayers.get(0)));
-			int secondInput = inputs.get(players.indexOf(activePlayers.get(1)));
-
-			if ((firstInput == 0 && secondInput > 0) || (secondInput == 0 && firstInput > 0)) {
-				if(firstInput > 0) {
-					winner=activePlayers.get(0); 
-					notifyPlayers("Player "+activePlayers.get(1).getNickname()+" has been eliminated.");
-				}
-				else {
-					winner=activePlayers.get(1);
-					notifyPlayers("Player "+activePlayers.get(0).getNickname()+" has been eliminated.");
-				}  
-				gameOver();
-				//	            return;
-			}
-		}
-		else if(count==1) {
+		if(count==1) {
 			winner =activePlayers.get(0);
 			gameOver();}
 		else if(count==0) {
@@ -361,34 +327,28 @@ public class Game extends Thread {
 
 	private void eliminatePlayer(Player p) throws IOException {
 		p.setActive(false);
-		notifyPlayers("Client: " + p.getNickname() + " has been eliminated!");
+		notifyPlayers("Jogador: " + p.getNickname() + " foi eliminado!");
 	}
 
 	private void gameOver() {
-		System.out.println("Inside gameOver()");
+		System.out.println("Dentro de gameOver()");
 		if(winner!=null) {
 			winner.incrementGlobalPoints();
-			Server.updateLeaderboard(winner);
+			ProtocolServer.updateLeaderboard(winner);
 		}
 		try {
-			notifyPlayers(
-					"  ____    _    __  __ _____    _____     _______ ____  \n" +
-							" / ___|  / \\  |  \\/  | ____|  / _ \\ \\   / / ____|  _ \\ \n" +
-							"| |  _  / _ \\ | |\\/| |  _|   | | | \\ \\ / /|  _| | |_) |\n" +
-							"| |_| |/ ___ \\| |  | | |___  | |_| |\\ V / | |___|  _ < \n" +
-							" \\____/_/   \\_\\_|  |_|_____|  \\___/  \\_/  |_____|_| \\_\\\n" +
-					"                                                       \n");
 			String border = new String(new char[50]).replace("\0", "*");
+			notifyPlayers("Fim de jogo!!!");
 			if(winner!=null) {
 				notifyPlayers("\n" + border + 
-						"\n* Congratulations! The final winner is: " + winner.getNickname() + " *" +
+						"\n* Parabéns! O vencedor final é: " + winner.getNickname() + " *" +
 						"\n" + border + "\n");
 			}else {
 				notifyPlayers("\n" + border + 
-						"\n* There is no final winner. All players lost. *" +
+						"\n* Não há um vencedor final. Todos os jogadores perderam. *" +
 						"\n" + border + "\n");
 			}
-			notifyPlayers(Server.displayLeaderboard());
+			notifyPlayers(ProtocolServer.displayLeaderboard());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -400,7 +360,7 @@ public class Game extends Thread {
 			try {
 				player.getSocket().close();
 			} catch (IOException e) {
-				System.err.println("Could not close connection: " + e.getMessage());
+				System.err.println("Não conseguiu fechar a conexão: " + e.getMessage());
 			}
 		}
 	}
