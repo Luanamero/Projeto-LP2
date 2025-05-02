@@ -1,3 +1,13 @@
 Para comunicação entre servidor e cliente, o programa está usando BufferedReader e PrintWritter -> o professor ensinou com DataInputStream e DataOutputStream
 
 Melhorar a função IssueTicket -> syncronized e retorna apenas um id (está muito confuso)
+
+Enquanto espera que mais jogadores entrem no jogo, espera em um while com thread.sleep -> acho que tem como usar variáveis condicionais, e usar o notifyAll
+
+No game, setUserInputReady deve ser syncronized (está atualizando um contador)
+
+Ainda não sei como fazer para pegar os inputs dos players concorrentemente -> poderia colocar a lógica para o cliente, mas faz sentido retirar a lógica de jogo do Game para o Client?
+Pelo o que vi, podemos fazer com pool de threads. 
+
+Possível erro -> Se não tiver nenhum jogo ativo, cria um jogo (possível criação de dois jogos sem necessidade)
+Ainda sobre isso, AddNewGame precisa de alguma forma de sincronização, pois incrementa um contador e coloca como id do jogo (jogos com o mesmo id)

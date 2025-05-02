@@ -148,7 +148,7 @@ public class Game extends Thread {
 
 	        try {
 	            out.println("Enter your guess (between 0 and 100):");
-	            player.getSocket().setSoTimeout(20000); // 20 seconds timeout
+	            player.getSocket().setSoTimeout(30000); // 20 seconds timeout
 
 	            String inputStr = in.readLine();
 	            if (inputStr == null || inputStr.isEmpty()) {
@@ -193,7 +193,7 @@ public class Game extends Thread {
 
 	        try {
 	            out.println("Echo msg: Type 'yes' to confirm your presence.");
-	            player.getSocket().setSoTimeout(10000);  // Wait for 10 seconds
+	            player.getSocket().setSoTimeout(30000);  // Wait for 10 seconds
 
 	            String response = in.readLine();
 	            // Consider both no response and an empty string as inactivity signs

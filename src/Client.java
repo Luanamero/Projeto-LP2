@@ -31,7 +31,7 @@ public class Client {
     	                out.println(userInput);
     	            }
     	            else if (fromServer.startsWith("Enter your guess") || fromServer.startsWith("Echo msg")) {
-                        handleInputWithTimeout(stdIn, out, 10000); // 10 seconds timeout for user input
+                        handleInputWithTimeout(stdIn, out, 30000); // 10 seconds timeout for user input
                     } 
 
     	        }
