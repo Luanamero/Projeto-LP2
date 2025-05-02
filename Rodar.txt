@@ -1,0 +1,7 @@
+Mudei tudo para dentro da pasta src para ficar mais fácil de compilar as classes de uma vez só -> javac src/*.java
+
+Cliente:
+java -cp src Client
+
+Servidor:
+java -cp src Server

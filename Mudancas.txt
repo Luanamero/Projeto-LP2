@@ -1,0 +1,3 @@
+Para comunicação entre servidor e cliente, o programa está usando BufferedReader e PrintWritter -> o professor ensinou com DataInputStream e DataOutputStream
+
+Melhorar a função IssueTicket -> syncronized e retorna apenas um id (está muito confuso)
