@@ -1,85 +1,89 @@
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
+
 
 public class Client {
 
     public static void main(String[] args) {
-        try (Socket socket = new Socket("localhost", 1505);
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in))) {
+
+
+        // Pergunta ao usuário a porta
+        BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
+        int porta = 1505; // valor padrão
+
+        try {
+            System.out.print("Digite a porta para se conectar (ex: 8888): ");
+            porta = Integer.parseInt(stdIn.readLine());
+        } catch (IOException e) {
+            System.out.println("Erro ao ler a porta. Usando porta padrão 1505.");
+        }
+
+        try (Socket socket = new Socket("localhost", porta);
+             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+             DataInputStream in = new DataInputStream(socket.getInputStream())) {
 
             String fromServer;
-            // Modifique o loop principal para:
-            while ((fromServer = in.readLine()) != null) {
+
+            while (true) {
+                fromServer = in.readUTF();
                 System.out.println(fromServer);
 
-                if (fromServer.startsWith("##Apostas##")) {
-                    // Esta é a marcação oculta, não mostramos no console
-                    // Ler a próxima linha que contém a mensagem real
-                    String betPrompt = in.readLine();
-                    System.out.println(betPrompt);  // Mostra apenas a mensagem amigável
+                if (fromServer.toLowerCase().contains("quanto deseja apostar")) {
                     String bet = stdIn.readLine();
-                    out.println(bet);
+                    out.writeUTF(bet);
                 }
-                else if (fromServer.startsWith("Escolha um ID de jogo ou digite 'criar' para criar um novo jogo.")
-                        || fromServer.startsWith("Digite o seu nome/apelido:")
-                        || fromServer.startsWith("Digite 'pronto' quando estiver pronto para começar a jogar.")
-                        || fromServer.startsWith("Digite o nome do jogo: ")
-                        || fromServer.startsWith("Digite um número de ID válido.")) {
+                if (fromServer.toLowerCase().contains("digite o seu nome") ||
+                    fromServer.toLowerCase().contains("escolha um id") ||
+                    fromServer.toLowerCase().contains("digite 'pronto") ||
+                    fromServer.toLowerCase().contains("digite o nome do jogo") ||
+                    fromServer.toLowerCase().contains("id inválido") ||
+                    fromServer.toLowerCase().contains("deseja continuar assistindo")
+                ) {
                     String userInput = stdIn.readLine();
-                    out.println(userInput);
+                    out.writeUTF(userInput);
+                    out.flush();
                 } 
-                else if (fromServer.startsWith("Echo") 
-                        || fromServer.startsWith("Escolha uma ação (hit/stand):")) {
+                else if (fromServer.toLowerCase().contains("escolha uma ação")) {
                     handleInputWithTimeout(stdIn, out, 50000);
                 }
             }
         } catch (IOException e) {
-            System.err.println("Não conseguiu se conectar ao localhost");
+            System.err.println("Erro ao conectar-se ao servidor na porta " + porta);
             e.printStackTrace();
         }
     }
 
-    private static void handleInputWithTimeout(BufferedReader stdIn, PrintWriter out, int timeoutMillis) {
+    private static void handleInputWithTimeout(BufferedReader stdIn, DataOutputStream out, int timeoutMillis) {
         Thread inputThread = new Thread(() -> {
             try {
                 String userInput = stdIn.readLine();
-                if (userInput != null) {
-                    out.println(userInput);
-                } else {
-                    out.println("");
-                }
+                out.writeUTF(userInput != null ? userInput : "");
+                
             } catch (IOException e) {
-                System.err.println("Erro enquanto lia dados do cliente");
-                out.println("");
+                try {
+                    out.writeUTF("");
+                    
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
             }
         });
 
         inputThread.start();
 
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                if (inputThread.isAlive()) {
-                    inputThread.interrupt();
-                    out.println("");
-                }
-                timer.cancel();
-            }
-        }, timeoutMillis);
-
         try {
             inputThread.join(timeoutMillis);
-            timer.cancel();
-        } catch (InterruptedException e) {
-            System.err.println("Thread main foi interrompida enquanto esperava as outras.");
+            if (inputThread.isAlive()) {
+                inputThread.interrupt();
+                out.writeUTF("");
+                
+            }
+        } catch (InterruptedException | IOException e) {
+            e.printStackTrace();
         }
     }
 }
