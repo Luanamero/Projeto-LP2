@@ -3,16 +3,16 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ProtocolServer extends Thread {
     private Socket p;
     static Semaphore sem = new Semaphore(6);        // Limite a 6 conexões simultâneas
-    static ArrayList<Socket> waitingPlayers = new ArrayList<>();
-    static ArrayList<String> nicknames = new ArrayList<>();
-    static ArrayList<Game> games = new ArrayList<>();
+    static CopyOnWriteArrayList<Socket> waitingPlayers = new CopyOnWriteArrayList<>();
+    static CopyOnWriteArrayList<String> nicknames = new CopyOnWriteArrayList<>();
+    static CopyOnWriteArrayList<Game> games = new CopyOnWriteArrayList<>();
     static ReentrantLock lockId = new ReentrantLock(), lockGame = new ReentrantLock();
     static int playerIdCounter = 1;
     private static int nextGameId = 1;
