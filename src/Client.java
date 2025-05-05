@@ -20,18 +20,21 @@ public class Client {
             System.out.println("Erro ao ler a porta. Usando porta padrão 1505.");
         }
 
+        // try-with-resources garante que socket e streams serao fechados
         try (Socket socket = new Socket("localhost", porta);
              DataOutputStream out = new DataOutputStream(socket.getOutputStream());
              DataInputStream in = new DataInputStream(socket.getInputStream())) {
 
-            String fromServer;
-
+            String fromServer; // armazenara mensagens recebidas do servidor
+            
+            // loop principal de comunicação
             while (true) {
                 try {
-                    fromServer = in.readUTF();
+                    fromServer = in.readUTF(); // le mensagem do servidor
                 } 
+                // pode lançar EOFException se conexao for fechada pelo servidor
                 catch (EOFException | SocketException e) {
-                    // servidor fechou ou resetou a conexão
+                    // servidor fechou a conexão
                     System.out.println("Conexão encerrada pelo servidor.");
                     break;
                 }
@@ -39,6 +42,7 @@ public class Client {
                 System.out.println(fromServer);
                 String lower = fromServer.toLowerCase();
 
+                // diferentes tratamentos baseados no estado do servidor
                 if (lower.contains("quanto deseja apostar")) {
                     String bet = stdIn.readLine();
                     out.writeUTF(bet);
@@ -56,6 +60,7 @@ public class Client {
                     out.flush();
                 }
                 else if (lower.contains("escolha uma ação")) {
+                    // estado critico com timeout para evitar bloqueio indefinido
                     handleInputWithTimeout(stdIn, out, 50000);
                 }
             }
@@ -67,6 +72,7 @@ public class Client {
     }
 
     private static void handleInputWithTimeout(BufferedReader stdIn, DataOutputStream out, int timeoutMillis) {
+        // cria thread separada para nao bloquear a thread principal
         Thread inputThread = new Thread(() -> {
             try {
                 String userInput = stdIn.readLine();
@@ -82,9 +88,11 @@ public class Client {
             }
         });
 
-        inputThread.start();
+        inputThread.start(); // inicia a thread de input
 
         try {
+            // aguarda a thread de input por um tempo limite
+            // se o tempo limite expirar, interrompe a thread
             inputThread.join(timeoutMillis);
             if (inputThread.isAlive()) {
                 inputThread.interrupt();
