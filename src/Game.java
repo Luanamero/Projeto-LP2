@@ -78,7 +78,7 @@ public class Game extends Thread {
         determineResults();
 
         try {
-            Thread.sleep(5000); 
+            Thread.sleep(8000); 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -134,7 +134,7 @@ public class Game extends Thread {
                             out.writeUTF(erroMensagem); // mostra o erro
                             out.flush();
                             try {
-                                Thread.sleep(2000);
+                                Thread.sleep(8000);
                             } catch (InterruptedException ie) {
                                 Thread.currentThread().interrupt(); 
                             }
