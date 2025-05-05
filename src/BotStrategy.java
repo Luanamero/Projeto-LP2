@@ -1,11 +1,13 @@
+// Interface para decidir as estratégias de cada bot (hit ou stand)
+// É usada pela classe Player pra ditar o modo do bot jogar
 public interface BotStrategy {
     String decideAction(Player player, int dealerUpCardValue);
 }
 
+// Hit somente quando a mão é menor que 12 (evitar estouro)
 class ConservativeStrategy implements BotStrategy {
     @Override
     public String decideAction(Player player, int dealerUpCardValue) {
-        // Stand on 12 or higher
         if (player.getHandValue() >= 12) {
             return "stand";
         }
@@ -13,6 +15,7 @@ class ConservativeStrategy implements BotStrategy {
     }
 }
 
+// Estratégia básica do blackjack (maximizar chances matemáticas)
 class BasicStrategy implements BotStrategy {
     @Override
     public String decideAction(Player player, int dealerUpCardValue) {
@@ -20,7 +23,6 @@ class BasicStrategy implements BotStrategy {
         boolean hasAce = player.getHand().stream().anyMatch(c -> c.getRank() == Card.Rank.ACE);
         int numCards = player.getHand().size();
 
-        // Basic strategy rules
         if (hasAce && numCards == 2) { // Soft hand
             if (handValue >= 19) return "stand";
             if (handValue == 18 && dealerUpCardValue >= 9) return "hit";
@@ -35,6 +37,7 @@ class BasicStrategy implements BotStrategy {
     }
 }
 
+// Mesmo com alto risco, continua dando hit (a não ser que atinja 17+)
 class AggressiveStrategy implements BotStrategy {
     @Override
     public String decideAction(Player player, int dealerUpCardValue) {

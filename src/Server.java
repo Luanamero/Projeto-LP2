@@ -1,4 +1,3 @@
-// Importa classes necessárias para entrada/saída e conexões de rede
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;

@@ -1,3 +1,4 @@
+// Lógica da conexão de cada jogador com o servidor
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -8,7 +9,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class ProtocolServer extends Thread {
     private Socket p;
-    static Semaphore sem = new Semaphore(6);
+    static Semaphore sem = new Semaphore(6);        // Limite a 6 conexões simultâneas
     static ArrayList<Socket> waitingPlayers = new ArrayList<>();
     static ArrayList<String> nicknames = new ArrayList<>();
     static ArrayList<Game> games = new ArrayList<>();
@@ -21,27 +22,6 @@ public class ProtocolServer extends Thread {
         this.p = p;
     }
 
-    public static synchronized void updateLeaderboard(Player winner) {
-        leaderboard.removeIf(player -> player.getNickname().equals(winner.getNickname()));
-        leaderboard.add(winner);
-        leaderboard.sort((p1, p2) -> p2.getChips() - p1.getChips());
-
-        while (leaderboard.size() > 5) {
-            leaderboard.remove(5);
-        }
-    }
-
-    public static String displayLeaderboard() {
-        StringBuilder leaderboardString = new StringBuilder("Leaderboard (Top 5 por fichas):\n");
-        for (Player player : leaderboard) {
-            leaderboardString.append(player.getNickname())
-                    .append(": ")
-                    .append(player.getChips())
-                    .append(" fichas\n");
-        }
-        return leaderboardString.toString();
-    }
-
     public static void addNewGame() {
         lockGame.lock();
         int id = nextGameId++;
@@ -51,11 +31,12 @@ public class ProtocolServer extends Thread {
         games.add(newGame);
     }
 
+    // Mensagem inicial (+ limpeza de tela)
     public static void sendWelcomeMessage(DataOutputStream out) throws IOException {
         final String ANSI_CLEAR_SCREEN = "\033[H\033[2J";
         
         String mensagem = ANSI_CLEAR_SCREEN +
-                "Bem-vindo ao Blackjack Online!\n" +
+                "Bem-vindo ao Blackjack!\n" +
                 "------------------------------------------------\n\n" +
                 "Você está prestes a encarar o dealer em uma partida clássica de Blackjack.\n" +
                 "O seu objetivo? Chegar o mais próximo de 21 pontos sem ultrapassar esse limite.\n\n" +
@@ -72,6 +53,7 @@ public class ProtocolServer extends Thread {
         out.flush();
     }
 
+    // Cria ID única pro jogador usando lockId
     public static String issueTicket(String nickname) {
         int playerId;
         lockId.lock();
@@ -80,6 +62,7 @@ public class ProtocolServer extends Thread {
         return nickname + playerId;
     }
 
+    // Mostra as mesas disponíveis
     public static String showGames() {
         StringBuilder gamesList = new StringBuilder();
         boolean allFinished = true;
@@ -91,6 +74,7 @@ public class ProtocolServer extends Thread {
             }
         }
 
+        // Caso não tenha mesas, cria uma automaticamente
         if (games.isEmpty() || allFinished) {
             System.out.println("Não há jogos disponíveis. Um novo jogo será criado automaticamente.");
             addNewGame();
@@ -115,6 +99,7 @@ public class ProtocolServer extends Thread {
         return gamesList.toString();
     }
 
+    // Verifica se o ID da mesa existe, não começou ('pronto') e tem espaço (<6 jogadores)
     public static boolean handleGameSelection(int gameSelection) {
         for (Game g : games) {
             if (g.getGameid() == gameSelection) {
@@ -143,17 +128,16 @@ public class ProtocolServer extends Thread {
 
             // Aguarda 5 segundos
             try {
-                out.writeUTF("\nCarregando leaderboard...");
+                out.writeUTF("\nCarregando...");
                 Thread.sleep(3000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
-            final String ANSI_CLEAR_SCREEN = "\033[H\033[2J";
+            final String ANSI_CLEAR_SCREEN = "\033[H\033[2J";   // Limpa a tela
             out.writeUTF(ANSI_CLEAR_SCREEN);
             out.flush();
 
-            out.writeUTF(displayLeaderboard());
             out.writeUTF(showGames());
             out.flush();
 
@@ -162,6 +146,7 @@ public class ProtocolServer extends Thread {
             try {
                 String userGameSelection = in.readUTF();
 
+                // Criação de mesas
                 if (userGameSelection.equalsIgnoreCase("criar")) {
                     out.writeUTF("Digite o nome do jogo: ");
                     out.flush();
@@ -172,7 +157,7 @@ public class ProtocolServer extends Thread {
                     g.addPlayer(p, nickname);
                     gameSelection = g.getGameid();
                 } else {
-                    // loop robusto de validação
+                    // loop de validação de ID
                     while (true) {
                         try {
                             gameSelection = Integer.parseInt(userGameSelection);
@@ -210,6 +195,7 @@ public class ProtocolServer extends Thread {
             //out.writeUTF("\n\nSeja Bem-Vindo(a) à mesa de Blackjack!");
             //out.flush();
 
+            // Confirmar o início do jogo: 'pronto'
             while (true) {
                 out.writeUTF("\nDigite 'pronto' quando estiver pronto para começar a jogar.");
                 out.flush();
