@@ -13,7 +13,7 @@ public class ProtocolServer extends Thread {
     static ArrayList<String> nicknames = new ArrayList<>();
     static ArrayList<Game> games = new ArrayList<>();
     static ArrayList<Player> leaderboard = new ArrayList<>();
-    static ReentrantLock lockId = new ReentrantLock();
+    static ReentrantLock lockId = new ReentrantLock(), lockGame = new ReentrantLock();
     static int playerIdCounter = 1;
     private static int nextGameId = 1;
 
@@ -43,7 +43,10 @@ public class ProtocolServer extends Thread {
     }
 
     public static void addNewGame() {
-        Game newGame = new Game(nextGameId++);
+        lockGame.lock();
+        int id = nextGameId++;
+        lockGame.unlock();
+        Game newGame = new Game(id);
         newGame.setSemaphore(sem);
         games.add(newGame);
     }
