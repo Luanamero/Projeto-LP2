@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 
 public class Game extends Thread {
@@ -66,9 +70,34 @@ public class Game extends Thread {
         collectBets();
         dealInitialCards();
     
+        ExecutorService executor = Executors.newFixedThreadPool(players.size());
+        List<Future<?>> futures = new ArrayList<>();
+
         for (Player player : players) {
-            if (player.isActive() && player.getCurrentBet() > 0) playerTurn(player);
+            if (player.isActive() && player.getCurrentBet() > 0) {
+                Future<?> future = executor.submit(() -> {
+                    try {
+                        playerTurn(player);
+                    } catch (IOException e) {
+                        System.err.println("Erro durante o turno de " + player.getNickname() + ": " + e.getMessage());
+                        player.setActive(false);
+                    }
+                });
+                futures.add(future);
+            }
         }
+
+        // Aguarda todos os jogadores terminarem seus turnos
+        for (Future<?> future : futures) {
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
+        executor.shutdown();
+
     
         dealerTurn();
         determineResults();
@@ -109,75 +138,98 @@ public class Game extends Thread {
         }
     }
 
-    private void collectBets() throws IOException {
-        for (Player player : players) {
-            if (player.isActive()) {
-                if (player.isBot()) {
-                    int bet = new Random().nextInt(maxBet - minBet + 1) + minBet;
-                    player.placeBet(Math.min(bet, player.getChips()));
-                    notifyPlayers(player.getNickname() + " apostou " + player.getCurrentBet());
-                } else {
-                    DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
-                    DataInputStream in = new DataInputStream(player.getSocket().getInputStream());
+   private void collectBets() throws IOException {
+    ExecutorService executor = Executors.newFixedThreadPool(players.size());
+    List<Future<?>> futures = new ArrayList<>();
 
-                    boolean validBet = false;
-                    String erroMensagem = "";
+    for (Player player : players) {
+        if (player.isActive()) {
+            Future<?> future = executor.submit(() -> {
+                try {
+                    if (player.isBot()) {
+                        int bet = new Random().nextInt(maxBet - minBet + 1) + minBet;
+                        player.placeBet(Math.min(bet, player.getChips()));
+                        notifyPlayers(player.getNickname() + " apostou " + player.getCurrentBet());
+                    } else {
+                        DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
+                        DataInputStream in = new DataInputStream(player.getSocket().getInputStream());
 
-                    while (!validBet && player.isActive()) {
-                    
-                        if (!erroMensagem.isEmpty()) {
-                            out.writeUTF(erroMensagem); // mostra o erro
-                            out.flush();
-                            try {
-                                Thread.sleep(8000);
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt(); 
-                            }
-                            erroMensagem = ""; // limpa pra próxima iteração
-                        }
+                        boolean validBet = false;
+                        String erroMensagem = "";
 
-                        final String ANSI_CLEAR_SCREEN = "\033[H\033[2J";
-                        String message = ANSI_CLEAR_SCREEN + "============== Apostas ==============";
-                        out.writeUTF(message);
+                        while (!validBet && player.isActive()) {
 
-                        out.writeUTF("Você tem " + player.getChips() + " fichas. Quanto deseja apostar? (min " + minBet + ", max " + maxBet + ")");
-
-                        try {
-                            player.getSocket().setSoTimeout(TIMEOUT);
-                            String betStr = in.readUTF();
-
-                            if (betStr == null) {
-                                player.setActive(false);
-                                break;
-                            }
-
-                            try {
-                                int bet = Integer.parseInt(betStr.trim());
-
-                                if (bet < minBet) erroMensagem = "Aposta muito baixa. O mínimo é " + minBet + ".";
-                                else if (bet > maxBet) erroMensagem = "Aposta muito alta. O máximo é " + maxBet + ".";
-                                else if (bet > player.getChips()) erroMensagem = "Você não tem fichas suficientes.";
-                                else {
-                                    player.placeBet(bet);
-                                    notifyPlayers("\n\n" + player.getNickname() + " apostou " + player.getCurrentBet());
-                                    validBet = true;
+                            if (!erroMensagem.isEmpty()) {
+                                out.writeUTF(erroMensagem);
+                                out.flush();
+                                try {
+                                    Thread.sleep(8000);
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    return;
                                 }
-                            } catch (NumberFormatException e) {
-                                erroMensagem = "⚠ Por favor, digite um número válido.";
+                                erroMensagem = "";
                             }
 
-                        } catch (SocketTimeoutException e) {
-                            out.writeUTF("⏰ Tempo esgotado. Apostando o mínimo.");
-                            player.placeBet(minBet);
-                            notifyPlayers(player.getNickname() + " apostou " + player.getCurrentBet());
-                            validBet = true;
+                            final String ANSI_CLEAR_SCREEN = "\033[H\033[2J";
+                            String message = ANSI_CLEAR_SCREEN + "============== Apostas ==============";
+                            out.writeUTF(message);
+
+                            out.writeUTF("Você tem " + player.getChips() + " fichas. Quanto deseja apostar? (min " + minBet + ", max " + maxBet + ")");
+
+                            try {
+                                player.getSocket().setSoTimeout(TIMEOUT);
+                                String betStr = in.readUTF();
+
+                                if (betStr == null) {
+                                    player.setActive(false);
+                                    break;
+                                }
+
+                                try {
+                                    int bet = Integer.parseInt(betStr.trim());
+
+                                    if (bet < minBet) erroMensagem = "Aposta muito baixa. O mínimo é " + minBet + ".";
+                                    else if (bet > maxBet) erroMensagem = "Aposta muito alta. O máximo é " + maxBet + ".";
+                                    else if (bet > player.getChips()) erroMensagem = "Você não tem fichas suficientes.";
+                                    else {
+                                        player.placeBet(bet);
+                                        notifyPlayers("\n\n" + player.getNickname() + " apostou " + player.getCurrentBet());
+                                        validBet = true;
+                                    }
+                                } catch (NumberFormatException e) {
+                                    erroMensagem = "⚠ Por favor, digite um número válido.";
+                                }
+
+                            } catch (SocketTimeoutException e) {
+                                out.writeUTF("⏰ Tempo esgotado. Apostando o mínimo.");
+                                player.placeBet(minBet);
+                                notifyPlayers(player.getNickname() + " apostou " + player.getCurrentBet());
+                                validBet = true;
+                            }
                         }
                     }
+                } catch (IOException e) {
+                    System.err.println("Erro ao coletar aposta de " + player.getNickname() + ": " + e.getMessage());
+                    player.setActive(false);
                 }
-            }
+            });
+
+            futures.add(future);
         }
     }
 
+    // Aguarda todos os jogadores finalizarem as apostas
+    for (Future<?> future : futures) {
+        try {
+            future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    executor.shutdown();
+}
     private void dealInitialCards() throws IOException {
         for (int i = 0; i < 2; i++) {
             for (Player player : players)
