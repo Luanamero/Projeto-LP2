@@ -225,12 +225,12 @@ public class Game extends Thread {
                                         validBet = true;
                                     }
                                 } catch (NumberFormatException e) {
-                                    erroMensagem = "⚠ Por favor, digite um número válido.";
+                                    erroMensagem = "Por favor, digite um número válido.";
                                 }
 
                             } catch (SocketTimeoutException e) {
                                 // se não responder a tempo, a aposta é automaticamente a mínima
-                                out.writeUTF("⏰ Tempo esgotado. Apostando o mínimo.");
+                                out.writeUTF("Tempo esgotado. Apostando o mínimo.");
                                 player.placeBet(minBet);
                                 notifyPlayers(player.getNickname() + " apostou " + player.getCurrentBet());
                                 validBet = true;
