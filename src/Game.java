@@ -60,7 +60,7 @@ public class Game extends Thread {
     }
 
     private void playRound() throws IOException {
-        if (getActivePlayers().size() < 1) {
+        if (getActivePlayers().size() < 2) {
             isOver = true;
             return;
         }

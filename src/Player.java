@@ -137,6 +137,7 @@ public class Player {
 
     public void closeSocket() {
         try {
+            this.isActive = false;
             if (socket != null && !socket.isClosed()) {
                 socket.close();
             }
