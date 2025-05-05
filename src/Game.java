@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
@@ -60,57 +61,51 @@ public class Game extends Thread {
     }
 
     private void playRound() throws IOException {
-        if (getActivePlayers().size() < 2) {
-            isOver = true;
-            return;
-        }
-
         dealer.clearHand();
         for (Player p : players) if (p.isActive()) p.clearHand();
         collectBets();
         dealInitialCards();
-
+    
         for (Player player : players) {
             if (player.isActive() && player.getCurrentBet() > 0) playerTurn(player);
         }
-
+    
         dealerTurn();
         determineResults();
-
+    
         try {
             Thread.sleep(8000); 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-
+    
         checkPlayersCanContinue();
-
-        for (Player player : players) {
-            if (!player.isBot() && !player.isActive()) {
-                long outrosAtivos = players.stream()
-                    .filter(p -> p != player && p.isActive())
-                    .count();
-        
-                if (outrosAtivos > 0) {
-                    try {
-                        DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
-                        DataInputStream in = new DataInputStream(player.getSocket().getInputStream());
-        
-                        out.writeUTF("Você está fora da partida (sem fichas). Deseja continuar assistindo as próximas rodadas? (sim/nao)");
+    
+        Iterator<Player> iter = players.iterator();
+        while (iter.hasNext()) {
+            Player p = iter.next();
+            if (!p.isBot() && !p.isActive()) {
+                Socket sock = p.getSocket();
+                // só envia se o socket ainda estiver aberto
+                if (sock != null && !sock.isClosed()) {
+                    try (DataOutputStream out = new DataOutputStream(sock.getOutputStream())) {
+                        out.writeUTF("Você saiu da partida.");
                         out.flush();
-        
-                        String resposta = in.readUTF();
-                        if (resposta.equalsIgnoreCase("nao")) {
-                            out.writeUTF("Você saiu da partida.");
-                            out.flush();
-                            player.closeSocket();
-                        }
                     } catch (IOException e) {
                         e.printStackTrace();
-                        player.closeSocket();
                     }
                 }
+                // fecha e remove da lista uma única vez
+                p.closeSocket();
+                iter.remove();
             }
+        }
+
+        boolean anyHumanLeft = players.stream().anyMatch(p -> !p.isBot());
+        if (!anyHumanLeft) {
+            isOver = true;
+            System.out.println("Mesa " + gameid +
+                " foi encerrada porque todos os jogadores saíram ou ficaram sem fichas.");
         }
     }
 
@@ -327,9 +322,10 @@ public class Game extends Thread {
         players.add(player);
     
         final String ANSI_CLEAR_SCREEN = "\033[H\033[2J";
+        String nomeMesa = gameName.isEmpty() ? "Mesa " + gameid : gameName;
         String mensagem = ANSI_CLEAR_SCREEN +
-                          "\n\n" + player.getNickname() +
-                          " entrou para o jogo na mesa \"" + gameName + "\".";
+            "\n\n" + player.getNickname() +
+            " entrou para o jogo na mesa \"" + nomeMesa + "\".";
     
         try {
             notifyPlayers(mensagem);

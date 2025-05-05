@@ -1,17 +1,15 @@
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
-
+import java.net.SocketException;
 
 public class Client {
 
     public static void main(String[] args) {
-
-
-        // Pergunta ao usuário a porta
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
         int porta = 1505; // valor padrão
 
@@ -29,28 +27,39 @@ public class Client {
             String fromServer;
 
             while (true) {
-                fromServer = in.readUTF();
-                System.out.println(fromServer);
+                try {
+                    fromServer = in.readUTF();
+                } 
+                catch (EOFException | SocketException e) {
+                    // servidor fechou ou resetou a conexão
+                    System.out.println("Conexão encerrada pelo servidor.");
+                    break;
+                }
 
-                if (fromServer.toLowerCase().contains("quanto deseja apostar")) {
+                System.out.println(fromServer);
+                String lower = fromServer.toLowerCase();
+
+                if (lower.contains("quanto deseja apostar")) {
                     String bet = stdIn.readLine();
                     out.writeUTF(bet);
+                    out.flush();
                 }
-                if (fromServer.toLowerCase().contains("digite o seu nome") ||
-                    fromServer.toLowerCase().contains("escolha um id") ||
-                    fromServer.toLowerCase().contains("digite 'pronto") ||
-                    fromServer.toLowerCase().contains("digite o nome do jogo") ||
-                    fromServer.toLowerCase().contains("id inválido") ||
-                    fromServer.toLowerCase().contains("deseja continuar assistindo")
-                ) {
+                else if (lower.contains("digite o seu nome")
+                      || lower.contains("escolha um id")
+                      || lower.contains("digite 'pronto")
+                      || lower.contains("digite o nome do jogo")
+                      || lower.contains("id inválido")
+                      ) {
+
                     String userInput = stdIn.readLine();
                     out.writeUTF(userInput);
                     out.flush();
-                } 
-                else if (fromServer.toLowerCase().contains("escolha uma ação")) {
+                }
+                else if (lower.contains("escolha uma ação")) {
                     handleInputWithTimeout(stdIn, out, 50000);
                 }
             }
+
         } catch (IOException e) {
             System.err.println("Erro ao conectar-se ao servidor na porta " + porta);
             e.printStackTrace();
@@ -62,11 +71,11 @@ public class Client {
             try {
                 String userInput = stdIn.readLine();
                 out.writeUTF(userInput != null ? userInput : "");
-                
+                out.flush();
             } catch (IOException e) {
                 try {
                     out.writeUTF("");
-                    
+                    out.flush();
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
@@ -80,7 +89,7 @@ public class Client {
             if (inputThread.isAlive()) {
                 inputThread.interrupt();
                 out.writeUTF("");
-                
+                out.flush();
             }
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
