@@ -13,7 +13,6 @@ public class ProtocolServer extends Thread {
     static ArrayList<Socket> waitingPlayers = new ArrayList<>();
     static ArrayList<String> nicknames = new ArrayList<>();
     static ArrayList<Game> games = new ArrayList<>();
-    static ArrayList<Player> leaderboard = new ArrayList<>();
     static ReentrantLock lockId = new ReentrantLock(), lockGame = new ReentrantLock();
     static int playerIdCounter = 1;
     private static int nextGameId = 1;
