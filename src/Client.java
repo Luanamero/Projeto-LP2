@@ -11,7 +11,7 @@ public class Client {
 
     public static void main(String[] args) {
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-        int porta = 1505; // valor padrão
+        int porta = 1505; 
 
         try {
             System.out.print("Digite a porta para se conectar (ex: 8888): ");
@@ -20,7 +20,7 @@ public class Client {
             System.out.println("Erro ao ler a porta. Usando porta padrão 1505.");
         }
 
-        // try-with-resources garante que socket e streams serao fechados
+       
         try (Socket socket = new Socket("localhost", porta);
              DataOutputStream out = new DataOutputStream(socket.getOutputStream());
              DataInputStream in = new DataInputStream(socket.getInputStream())) {
@@ -30,7 +30,7 @@ public class Client {
             // loop principal de comunicação
             while (true) {
                 try {
-                    fromServer = in.readUTF(); // le mensagem do servidor
+                    fromServer = in.readUTF(); 
                 } 
                 // pode lançar EOFException se conexao for fechada pelo servidor
                 catch (EOFException | SocketException e) {
